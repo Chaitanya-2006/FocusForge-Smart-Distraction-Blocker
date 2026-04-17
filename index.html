@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FocusForge - Smart Distraction Blocker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Custom styles for the full-screen overlays */
         .overlay {
             display: none; 
             backdrop-filter: blur(15px);
@@ -14,13 +14,11 @@
         .overlay.active {
             display: flex;
         }
-        /* Smooth transition for the circular timer */
         #progress-ring {
             transition: stroke-dashoffset 1s linear;
             transform: rotate(-90deg);
             transform-origin: 50% 50%;
         }
-        /* Custom scrollbar for history */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }
@@ -32,15 +30,22 @@
             background: #334155; 
             border-radius: 4px;
         }
+        /* Custom select arrow */
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex items-center justify-center p-6">
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex items-center justify-center p-6 relative">
 
-    <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 z-10">
         
-        <div class="lg:col-span-5 bg-slate-800 p-8 rounded-2xl shadow-lg flex flex-col items-center justify-center border border-slate-700">
+        <div class="lg:col-span-5 bg-slate-800 p-8 rounded-2xl shadow-lg flex flex-col items-center justify-center border border-slate-700 h-fit">
             <h1 class="text-3xl font-semibold text-slate-300 mb-2">FocusForge</h1>
-			<p class="text-slate-200 mb-2">Smart Distraction Blocker</p>
+            <p class="text-slate-200 mb-2">Smart Distraction Blocker</p>
             <p class="text-slate-500 mb-8">Stay in the zone.</p>
 
             <div class="relative w-64 h-64 flex flex-col items-center justify-center mb-8">
@@ -97,45 +102,96 @@
                     <h2 class="text-xl font-semibold mb-4 border-b border-slate-700 pb-2 text-slate-300">Distracting Websites</h2>
                     <p class="text-sm text-slate-400 mb-4">Add domains you want to avoid.</p>
                     
-                    <div class="flex gap-2 mb-4">
-                        <input type="text" id="domain-input" placeholder="youtube.com" class="flex-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="domain-input" placeholder="Custom URL..." class="flex-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors">
                         <button id="add-domain-btn" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20">Add</button>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button onclick="quickAddDomain('youtube.com')" class="text-xs bg-slate-700 hover:bg-red-500 hover:text-white text-slate-300 px-3 py-1 rounded-full transition-colors">youtube.com</button>
+                        <button onclick="quickAddDomain('instagram.com')" class="text-xs bg-slate-700 hover:bg-pink-500 hover:text-white text-slate-300 px-3 py-1 rounded-full transition-colors">instagram.com</button>
+                        <button onclick="quickAddDomain('netflix.com')" class="text-xs bg-slate-700 hover:bg-red-600 hover:text-white text-slate-300 px-3 py-1 rounded-full transition-colors">netflix.com</button>
+                        <button onclick="quickAddDomain('facebook.com')" class="text-xs bg-slate-700 hover:bg-blue-500 hover:text-white text-slate-300 px-3 py-1 rounded-full transition-colors">facebook.com</button>
                     </div>
 
                     <ul id="blocklist-container" class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar pr-2 flex-1">
                     </ul>
                 </div>
 
-                <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700">
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex flex-col">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-amber-400 text-xl">⚡</span>
                         <h2 class="text-lg font-semibold text-slate-300">Simulate Interception</h2>
                     </div>
                     <p class="text-sm text-slate-400 mb-4">Test your blocker by trying to visit a site.</p>
                     
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mb-3">
                         <input type="text" id="browser-simulator-input" placeholder="Enter URL..." class="flex-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500 transition-colors">
                         <button id="go-btn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-medium transition-colors">Go</button>
                     </div>
+
+                    <div class="flex flex-wrap gap-2 mb-2">
+                        <button onclick="quickSimulatePaste('youtube.com')" class="text-xs bg-slate-700 hover:bg-amber-500 hover:text-slate-900 text-slate-300 px-3 py-1 rounded-full transition-colors">youtube.com</button>
+                        <button onclick="quickSimulatePaste('instagram.com')" class="text-xs bg-slate-700 hover:bg-amber-500 hover:text-slate-900 text-slate-300 px-3 py-1 rounded-full transition-colors">instagram.com</button>
+                        <button onclick="quickSimulatePaste('netflix.com')" class="text-xs bg-slate-700 hover:bg-amber-500 hover:text-slate-900 text-slate-300 px-3 py-1 rounded-full transition-colors">netflix.com</button>
+                        <button onclick="quickSimulatePaste('facebook.com')" class="text-xs bg-slate-700 hover:bg-amber-500 hover:text-slate-900 text-slate-300 px-3 py-1 rounded-full transition-colors">facebook.com</button>
+                    </div>
+                    
                     <p id="simulator-feedback" class="mt-3 text-sm hidden font-medium"></p>
                 </div>
             </div>
 
-            <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex-1 flex flex-col min-h-[250px]">
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex flex-col h-[250px]">
                 <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-2">
                     <div class="flex items-center gap-2">
                         <span class="text-blue-400 text-xl">📊</span>
                         <h2 class="text-xl font-semibold text-slate-300">Activity History</h2>
                     </div>
-                    <button id="clear-history-btn" class="text-xs font-semibold text-slate-500 hover:text-red-400 transition-colors uppercase tracking-wider bg-slate-900 px-3 py-1 rounded-md border border-slate-700">Clear Log</button>
                 </div>
-                
-                <ul id="history-container" class="space-y-3 overflow-y-auto custom-scrollbar pr-2 flex-1 max-h-[300px]">
+                <ul id="history-container" class="space-y-3 overflow-y-auto custom-scrollbar pr-2 flex-1">
                 </ul>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex flex-col flex-1 min-h-[300px]">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-pink-400 text-xl">📈</span>
+                        <h2 class="text-xl font-semibold text-slate-300">Weekly Graph</h2>
+                    </div>
+                    <button id="open-logs-btn" class="bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wide transition-colors shadow-lg shadow-sky-500/20 flex items-center gap-2">
+                        View Specific History 📋
+                    </button>
+                </div>
+                <div class="relative w-full flex-1">
+                    <canvas id="distractionChart"></canvas>
+                </div>
             </div>
 
         </div>
     </main>
+
+    <button id="nuke-history-btn" class="fixed bottom-6 left-6 bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/50 px-4 py-3 rounded-xl font-medium transition-all shadow-lg flex items-center gap-3 z-40 group">
+        <span class="text-xl group-hover:animate-bounce">🗑️</span>
+        <span class="text-sm font-bold uppercase tracking-wider hidden sm:block">Delete All History</span>
+    </button>
+
+    <div id="site-logs-overlay" class="overlay fixed inset-0 z-50 bg-slate-900/90 flex-col items-center justify-center p-6">
+        <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/80 backdrop-blur-sm z-10">
+                <h3 class="text-2xl font-bold text-white">Detailed Site Logs</h3>
+                <button id="close-logs-btn" class="text-slate-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
+            </div>
+            <div class="p-6 flex-1 flex flex-col overflow-hidden">
+                <div class="relative mb-6">
+                    <select id="site-select" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-sky-500 appearance-none cursor-pointer font-medium shadow-inner transition-colors hover:border-slate-600">
+                        <option value="all">All Websites</option>
+                    </select>
+                </div>
+                <ul id="specific-logs-container" class="space-y-3 overflow-y-auto custom-scrollbar pr-2 flex-1">
+                    </ul>
+            </div>
+        </div>
+    </div>
 
     <div id="block-overlay" class="overlay fixed inset-0 z-50 bg-slate-900/95 flex-col items-center justify-center text-center p-6">
         <div class="text-7xl mb-6 animate-bounce">🛑</div>
@@ -172,7 +228,7 @@
 
     <script>
         // --- State Management ---
-        let goalMinutes = 25; // Default goal
+        let goalMinutes = 25; 
         let timeLeft = goalMinutes * 60;
         let timerInterval = null;
         let isRunning = false;
@@ -183,6 +239,15 @@
         let blocklist = [];
         let sessionHistory = []; 
         let wasDistracted = false;
+
+        // Chart Data State
+        let siteDistractions = JSON.parse(localStorage.getItem('focusForge_chartData')) || {
+            'youtube.com': 0,
+            'facebook.com': 0,
+            'instagram.com': 0,
+            'netflix.com': 0
+        };
+        let distractionChart;
 
         // --- DOM Elements ---
         const displayEl = document.getElementById('timer-display');
@@ -195,20 +260,17 @@
         const addDomainBtn = document.getElementById('add-domain-btn');
         const blocklistContainer = document.getElementById('blocklist-container');
         
-        // Settings Elements
         const goalInput = document.getElementById('goal-input');
         const timerSettings = document.getElementById('timer-settings');
         const upTime = document.getElementById('up-time');
         const downTime = document.getElementById('down-time');
 
-        // Circular Timer Elements
         const circle = document.getElementById('progress-ring');
         const radius = circle.r.baseVal.value;
         const circumference = radius * 2 * Math.PI;
         circle.style.strokeDasharray = `${circumference} ${circumference}`;
         circle.style.strokeDashoffset = 0;
 
-        // Overlay Elements
         const simulatorInput = document.getElementById('browser-simulator-input');
         const goBtn = document.getElementById('go-btn');
         const simulatorFeedback = document.getElementById('simulator-feedback');
@@ -224,7 +286,16 @@
         const closeSuccessBtn = document.getElementById('close-success-btn');
 
         const historyContainer = document.getElementById('history-container');
-        const clearHistoryBtn = document.getElementById('clear-history-btn');
+        
+        // New Modal Elements
+        const openLogsBtn = document.getElementById('open-logs-btn');
+        const closeLogsBtn = document.getElementById('close-logs-btn');
+        const siteLogsOverlay = document.getElementById('site-logs-overlay');
+        const siteSelect = document.getElementById('site-select');
+        const specificLogsContainer = document.getElementById('specific-logs-container');
+
+        // Nuke Button
+        const nukeHistoryBtn = document.getElementById('nuke-history-btn');
 
         // --- Initialization ---
         function initApp() {
@@ -241,10 +312,88 @@
             updateDisplay();
             renderBlocklist();
             renderHistory();
+            initChart();
+            updateSiteDropdown();
+        }
+
+        // --- Chart & Dropdown Logic ---
+        function initChart() {
+            const ctx = document.getElementById('distractionChart').getContext('2d');
+            distractionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(siteDistractions),
+                    datasets: [{
+                        label: 'No. of Distractions',
+                        data: Object.values(siteDistractions),
+                        backgroundColor: 'rgba(56, 189, 248, 0.6)', 
+                        borderColor: 'rgba(56, 189, 248, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#94a3b8', stepSize: 1 },
+                            grid: { color: '#334155', drawBorder: false }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function updateChart() {
+            distractionChart.data.labels = Object.keys(siteDistractions);
+            distractionChart.data.datasets[0].data = Object.values(siteDistractions);
+            distractionChart.update();
+            localStorage.setItem('focusForge_chartData', JSON.stringify(siteDistractions));
+        }
+
+        function updateSiteDropdown() {
+            const currentSelection = siteSelect.value;
+            siteSelect.innerHTML = '<option value="all">All Websites</option>';
+            
+            Object.keys(siteDistractions).forEach(site => {
+                const option = document.createElement('option');
+                option.value = site;
+                option.textContent = site;
+                siteSelect.appendChild(option);
+            });
+
+            if (Object.keys(siteDistractions).includes(currentSelection)) {
+                siteSelect.value = currentSelection;
+            }
+        }
+
+        // --- Quick Button Logic ---
+        function quickAddDomain(domain) {
+            if (domain && !blocklist.includes(domain)) {
+                blocklist.push(domain);
+                renderBlocklist();
+                
+                if(siteDistractions[domain] === undefined) {
+                    siteDistractions[domain] = 0;
+                    updateChart();
+                    updateSiteDropdown(); 
+                }
+            }
+        }
+
+        function quickSimulatePaste(domain) {
+            simulatorInput.value = domain;
         }
 
         // --- History Logic ---
-        function logHistory(message, type) {
+        function logHistory(message, type, domain = null) {
             const now = new Date();
             const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
@@ -252,17 +401,21 @@
                 message: message,
                 type: type, 
                 time: timeString,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                domain: domain 
             };
 
             sessionHistory.unshift(entry); 
             
-            if (sessionHistory.length > 50) {
+            if (sessionHistory.length > 100) {
                 sessionHistory.pop();
             }
 
             localStorage.setItem('focusForge_history', JSON.stringify(sessionHistory));
             renderHistory();
+            if (siteLogsOverlay.classList.contains('active')) {
+                renderSpecificLogs();
+            }
         }
 
         function renderHistory() {
@@ -273,7 +426,7 @@
                 return;
             }
 
-            sessionHistory.forEach(item => {
+            sessionHistory.slice(0, 50).forEach(item => {
                 const li = document.createElement('li');
                 li.className = "flex justify-between items-center bg-slate-900 px-4 py-3 rounded-lg border border-slate-700 shadow-sm transition-all hover:border-slate-600";
                 
@@ -292,11 +445,69 @@
             });
         }
 
-        clearHistoryBtn.addEventListener('click', () => {
-            if(confirm("Are you sure you want to clear your activity history?")) {
+        function renderSpecificLogs() {
+            const selectedSite = siteSelect.value;
+            specificLogsContainer.innerHTML = '';
+
+            const filteredLogs = sessionHistory.filter(item => {
+                if (!item.domain) return false; 
+                if (selectedSite === 'all') return true; 
+                return item.domain === selectedSite;
+            });
+
+            if (filteredLogs.length === 0) {
+                specificLogsContainer.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-40 text-slate-500">
+                        <span class="text-3xl mb-2">📭</span>
+                        <p class="text-sm">No data found for this selection.</p>
+                    </div>`;
+                return;
+            }
+
+            filteredLogs.forEach(item => {
+                const li = document.createElement('li');
+                li.className = "flex flex-col bg-slate-900 px-4 py-3 rounded-lg border border-slate-700 shadow-sm";
+                
+                const domainTag = `<span class="text-amber-400 font-bold text-sm tracking-wide uppercase">${item.domain}</span>`;
+
+                li.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        ${domainTag}
+                        <span class="text-slate-400 text-xs font-bold tracking-wider">${item.time}</span>
+                    </div>
+                    <p class="text-slate-300 text-sm">${item.message}</p>
+                `;
+                specificLogsContainer.appendChild(li);
+            });
+        }
+
+        // --- Master Nuke Button Logic ---
+        nukeHistoryBtn.addEventListener('click', () => {
+            if(confirm("Warning: Are you sure you want to permanently delete ALL activity logs, graphs, and stats? This cannot be undone.")) {
+                
+                // 1. Clear text logs
                 sessionHistory = [];
                 localStorage.setItem('focusForge_history', JSON.stringify(sessionHistory));
+                
+                // 2. Clear graph data (reset counts to 0 for tracking list)
+                siteDistractions = {};
+                blocklist.forEach(domain => {
+                    siteDistractions[domain] = 0;
+                });
+                localStorage.setItem('focusForge_chartData', JSON.stringify(siteDistractions));
+                
+                // 3. Reset Counters
+                completedCycles = 0;
+                distractionCount = 0;
+                updateDisplay();
+
+                // 4. Update UI visuals
                 renderHistory();
+                updateChart();
+                updateSiteDropdown();
+                if (siteLogsOverlay.classList.contains('active')) {
+                    renderSpecificLogs();
+                }
             }
         });
 
@@ -345,7 +556,6 @@
         function startTimer() {
             if (isRunning) return;
             
-            // Switch UI from "Input Mode" to "Countdown Mode"
             timerSettings.classList.add('hidden');
             displayEl.classList.remove('hidden');
             
@@ -396,7 +606,6 @@
             clearInterval(timerInterval);
             timeLeft = goalMinutes * 60;
             
-            // Show input again
             timerSettings.classList.remove('hidden');
             displayEl.classList.add('hidden');
             
@@ -410,10 +619,8 @@
         window.addEventListener('blur', () => {
             if (isRunning) {
                 pauseTimer();
-                
                 distractionCount++; 
                 updateDisplay(); 
-
                 logHistory('Distraction Logged (Navigated Away)', 'distraction');
                 wasDistracted = true;
 
@@ -454,6 +661,12 @@
                 blocklist.push(domain);
                 domainInput.value = '';
                 renderBlocklist();
+                
+                if(siteDistractions[domain] === undefined) {
+                    siteDistractions[domain] = 0;
+                    updateChart();
+                    updateSiteDropdown();
+                }
             }
         }
 
@@ -467,11 +680,20 @@
             const targetUrl = simulatorInput.value.trim().toLowerCase();
             if (!targetUrl) return;
 
-            const isBlocked = blocklist.some(blockedDomain => targetUrl.includes(blockedDomain));
+            const matchedBlockedDomain = blocklist.find(blockedDomain => targetUrl.includes(blockedDomain));
 
-            if (isRunning && isBlocked) {
+            if (isRunning && matchedBlockedDomain) {
                 blockOverlay.classList.add('active');
                 simulatorFeedback.classList.add('hidden');
+                
+                if(siteDistractions[matchedBlockedDomain] !== undefined) {
+                    siteDistractions[matchedBlockedDomain]++;
+                    updateChart();
+                }
+                
+                // Track specific domain in history
+                logHistory(`Blocked access to ${matchedBlockedDomain}`, 'distraction', matchedBlockedDomain);
+
             } else {
                 simulatorFeedback.textContent = `✅ Allowed: Navigated to ${targetUrl}`;
                 simulatorFeedback.className = "mt-3 text-sm text-emerald-400 block font-medium";
@@ -501,7 +723,14 @@
         goBtn.addEventListener('click', simulateNavigation);
         simulatorInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') simulateNavigation(); });
 
-        // Close Overlays
+        // Modal specific listeners
+        openLogsBtn.addEventListener('click', () => {
+            siteLogsOverlay.classList.add('active');
+            renderSpecificLogs();
+        });
+        closeLogsBtn.addEventListener('click', () => siteLogsOverlay.classList.remove('active'));
+        siteSelect.addEventListener('change', renderSpecificLogs);
+
         closeOverlayBtn.addEventListener('click', () => blockOverlay.classList.remove('active'));
         closeDistractionBtn.addEventListener('click', () => distractionOverlay.classList.remove('active'));
         closeSuccessBtn.addEventListener('click', () => {
@@ -509,7 +738,6 @@
             resetTimer(); 
         });
 
-        // Start the app
         initApp();
     </script>
 </body>
