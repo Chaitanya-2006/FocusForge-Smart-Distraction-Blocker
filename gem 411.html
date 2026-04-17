@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusForge - Smart Distraction Blocker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the full-screen overlays */
+        .overlay {
+            display: none; 
+            backdrop-filter: blur(15px);
+        }
+        .overlay.active {
+            display: flex;
+        }
+        /* Smooth transition for the circular timer */
+        #progress-ring {
+            transition: stroke-dashoffset 1s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        /* Custom scrollbar for history */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex items-center justify-center p-6">
+
+    <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <div class="lg:col-span-5 bg-slate-800 p-8 rounded-2xl shadow-lg flex flex-col items-center justify-center border border-slate-700">
+            <h1 class="text-3xl font-semibold text-slate-300 mb-2">FocusForge</h1>
+			<p class="text-slate-200 mb-2">Smart Distraction Blocker</p>
+            <p class="text-slate-500 mb-8">Stay in the zone.</p>
+
+            <div class="relative w-64 h-64 flex flex-col items-center justify-center mb-8">
+                <svg class="absolute inset-0 w-full h-full">
+                    <circle cx="128" cy="128" r="115" stroke="currentColor" stroke-width="8" fill="transparent" class="text-slate-700" />
+                    <circle id="progress-ring" cx="128" cy="128" r="115" stroke="currentColor" stroke-width="8" fill="transparent" class="text-emerald-500" stroke-linecap="round" />
+                </svg>
+                
+                <div id="timer-settings" class="z-10 flex flex-col items-center">
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="goal-input" value="25" min="1" max="120" 
+                            class="bg-transparent text-6xl font-bold text-white w-24 text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                        <div class="flex flex-col">
+                            <button id="up-time" class="text-slate-400 hover:text-white">▲</button>
+                            <button id="down-time" class="text-slate-400 hover:text-white">▼</button>
+                        </div>
+                    </div>
+                    <p class="text-slate-500 uppercase text-xs tracking-widest font-bold mt-2">Minutes</p>
+                </div>
+            
+                <div id="timer-display" class="relative text-6xl font-bold tracking-widest text-white z-10 hidden">
+                    25:00
+                </div>
+            </div>
+
+            <div class="flex gap-4 mb-8">
+                <button id="start-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg font-medium transition-colors w-32 shadow-lg shadow-emerald-900/20">
+                    Start Focus
+                </button>
+                <button id="pause-btn" class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 rounded-lg font-medium transition-colors hidden w-32 shadow-lg shadow-amber-900/20">
+                    Pause
+                </button>
+                <button id="reset-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-medium transition-colors w-32">
+                    Reset
+                </button>
+            </div>
+
+            <div class="w-full grid grid-cols-2 gap-4">
+                <div class="bg-slate-900 rounded-xl p-4 text-center border border-slate-700">
+                    <p class="text-slate-400 text-xs uppercase tracking-wider font-semibold">Completed Cycles</p>
+                    <p id="cycle-count" class="text-3xl font-bold text-blue-400 mt-2">0</p>
+                </div>
+                <div class="bg-slate-900 rounded-xl p-4 text-center border border-slate-700">
+                    <p class="text-slate-400 text-xs uppercase tracking-wider font-semibold">Distractions</p>
+                    <p id="distraction-count" class="text-3xl font-bold text-amber-400 mt-2">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-7 flex flex-col gap-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex flex-col">
+                    <h2 class="text-xl font-semibold mb-4 border-b border-slate-700 pb-2 text-slate-300">Distracting Websites</h2>
+                    <p class="text-sm text-slate-400 mb-4">Add domains you want to avoid.</p>
+                    
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="domain-input" placeholder="youtube.com" class="flex-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                        <button id="add-domain-btn" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20">Add</button>
+                    </div>
+
+                    <ul id="blocklist-container" class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar pr-2 flex-1">
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-amber-400 text-xl">⚡</span>
+                        <h2 class="text-lg font-semibold text-slate-300">Simulate Interception</h2>
+                    </div>
+                    <p class="text-sm text-slate-400 mb-4">Test your blocker by trying to visit a site.</p>
+                    
+                    <div class="flex gap-2">
+                        <input type="text" id="browser-simulator-input" placeholder="Enter URL..." class="flex-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500 transition-colors">
+                        <button id="go-btn" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-medium transition-colors">Go</button>
+                    </div>
+                    <p id="simulator-feedback" class="mt-3 text-sm hidden font-medium"></p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex-1 flex flex-col min-h-[250px]">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-blue-400 text-xl">📊</span>
+                        <h2 class="text-xl font-semibold text-slate-300">Activity History</h2>
+                    </div>
+                    <button id="clear-history-btn" class="text-xs font-semibold text-slate-500 hover:text-red-400 transition-colors uppercase tracking-wider bg-slate-900 px-3 py-1 rounded-md border border-slate-700">Clear Log</button>
+                </div>
+                
+                <ul id="history-container" class="space-y-3 overflow-y-auto custom-scrollbar pr-2 flex-1 max-h-[300px]">
+                </ul>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="block-overlay" class="overlay fixed inset-0 z-50 bg-slate-900/95 flex-col items-center justify-center text-center p-6">
+        <div class="text-7xl mb-6 animate-bounce">🛑</div>
+        <h2 class="text-5xl font-bold text-white mb-4">Site Blocked!</h2>
+        <p class="text-xl text-slate-300 mb-6 max-w-md leading-relaxed">This website is on your distraction list. The app has intercepted your request.</p>
+        
+        <div class="bg-slate-800 border border-slate-700 rounded-xl px-8 py-4 mb-8 shadow-lg">
+            <p class="text-sm text-slate-400 uppercase tracking-widest font-semibold mb-1">Focus Time Remaining</p>
+            <p id="overlay-timer-display" class="text-5xl font-bold text-emerald-400 tracking-wider">00:00</p>
+        </div>
+
+        <button id="close-overlay-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-blue-900/50">
+            Return to Dashboard
+        </button>
+    </div>
+
+    <div id="distraction-overlay" class="overlay fixed inset-0 z-50 bg-amber-900/95 flex-col items-center justify-center text-center p-6">
+        <div class="text-7xl mb-6">⚠️</div>
+        <h2 class="text-5xl font-bold text-white mb-4">Distraction Logged!</h2>
+        <p class="text-xl text-amber-200 mb-8 max-w-md leading-relaxed">We noticed you clicked away from your work. Your timer was paused and a distraction has been logged.</p>
+        <button id="close-distraction-btn" class="bg-amber-600 hover:bg-amber-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-amber-900/50">
+            I Will Focus
+        </button>
+    </div>
+
+    <div id="success-overlay" class="overlay fixed inset-0 z-50 bg-emerald-900/95 flex-col items-center justify-center text-center p-6">
+        <div class="text-7xl mb-6 animate-bounce">🎉</div>
+        <h2 class="text-5xl font-bold text-white mb-4">Focus Complete!</h2>
+        <p class="text-2xl text-emerald-200 mb-8 max-w-md leading-relaxed font-medium">You completed your focus time, you are free now!</p>
+        <button id="close-success-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-900/50">
+            Start New Session
+        </button>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let goalMinutes = 25; // Default goal
+        let timeLeft = goalMinutes * 60;
+        let timerInterval = null;
+        let isRunning = false;
+        
+        let completedCycles = 0;
+        let distractionCount = 0;
+        
+        let blocklist = [];
+        let sessionHistory = []; 
+        let wasDistracted = false;
+
+        // --- DOM Elements ---
+        const displayEl = document.getElementById('timer-display');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const cycleCountEl = document.getElementById('cycle-count');
+        const distractionCountEl = document.getElementById('distraction-count');
+        const domainInput = document.getElementById('domain-input');
+        const addDomainBtn = document.getElementById('add-domain-btn');
+        const blocklistContainer = document.getElementById('blocklist-container');
+        
+        // Settings Elements
+        const goalInput = document.getElementById('goal-input');
+        const timerSettings = document.getElementById('timer-settings');
+        const upTime = document.getElementById('up-time');
+        const downTime = document.getElementById('down-time');
+
+        // Circular Timer Elements
+        const circle = document.getElementById('progress-ring');
+        const radius = circle.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        circle.style.strokeDashoffset = 0;
+
+        // Overlay Elements
+        const simulatorInput = document.getElementById('browser-simulator-input');
+        const goBtn = document.getElementById('go-btn');
+        const simulatorFeedback = document.getElementById('simulator-feedback');
+        
+        const blockOverlay = document.getElementById('block-overlay');
+        const closeOverlayBtn = document.getElementById('close-overlay-btn');
+        const overlayTimerDisplay = document.getElementById('overlay-timer-display');
+        
+        const distractionOverlay = document.getElementById('distraction-overlay');
+        const closeDistractionBtn = document.getElementById('close-distraction-btn');
+
+        const successOverlay = document.getElementById('success-overlay');
+        const closeSuccessBtn = document.getElementById('close-success-btn');
+
+        const historyContainer = document.getElementById('history-container');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+
+        // --- Initialization ---
+        function initApp() {
+            const savedList = localStorage.getItem('focusForge_blocklist');
+            if (savedList) blocklist = JSON.parse(savedList);
+
+            const savedHistory = localStorage.getItem('focusForge_history');
+            if (savedHistory) sessionHistory = JSON.parse(savedHistory);
+
+            if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+
+            updateDisplay();
+            renderBlocklist();
+            renderHistory();
+        }
+
+        // --- History Logic ---
+        function logHistory(message, type) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const entry = {
+                message: message,
+                type: type, 
+                time: timeString,
+                timestamp: Date.now()
+            };
+
+            sessionHistory.unshift(entry); 
+            
+            if (sessionHistory.length > 50) {
+                sessionHistory.pop();
+            }
+
+            localStorage.setItem('focusForge_history', JSON.stringify(sessionHistory));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyContainer.innerHTML = '';
+            
+            if (sessionHistory.length === 0) {
+                historyContainer.innerHTML = '<li class="text-slate-500 italic text-center py-8">No activity recorded yet. Start focusing!</li>';
+                return;
+            }
+
+            sessionHistory.forEach(item => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-slate-900 px-4 py-3 rounded-lg border border-slate-700 shadow-sm transition-all hover:border-slate-600";
+                
+                const isCycle = item.type === 'cycle';
+                const icon = isCycle ? '🎯' : '⚠️';
+                const textColor = isCycle ? 'text-emerald-400' : 'text-amber-400';
+                
+                li.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">${icon}</span>
+                        <span class="text-slate-300 font-medium text-sm">${item.message}</span>
+                    </div>
+                    <span class="${textColor} text-xs font-bold tracking-wider">${item.time}</span>
+                `;
+                historyContainer.appendChild(li);
+            });
+        }
+
+        clearHistoryBtn.addEventListener('click', () => {
+            if(confirm("Are you sure you want to clear your activity history?")) {
+                sessionHistory = [];
+                localStorage.setItem('focusForge_history', JSON.stringify(sessionHistory));
+                renderHistory();
+            }
+        });
+
+        // --- Timer Setting Logic ---
+        function updateGoal(val) {
+            if (isRunning) return; 
+            goalMinutes = Math.max(1, Math.min(120, goalMinutes + val));
+            goalInput.value = goalMinutes;
+            timeLeft = goalMinutes * 60;
+            updateDisplay();
+        }
+
+        // --- Timer Logic ---
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function setProgress(current) {
+            const total = goalMinutes * 60;
+            const offset = circumference - (current / total) * circumference;
+            circle.style.strokeDashoffset = offset;
+            
+            if (current < 30 && current > 0) {
+                circle.classList.remove('text-emerald-500');
+                circle.classList.add('text-red-500');
+            } else {
+                circle.classList.remove('text-red-500');
+                circle.classList.add('text-emerald-500');
+            }
+        }
+
+        function updateDisplay() {
+            const formattedTime = formatTime(timeLeft);
+            displayEl.textContent = formattedTime;
+            overlayTimerDisplay.textContent = formattedTime; 
+            
+            cycleCountEl.textContent = completedCycles;
+            distractionCountEl.textContent = distractionCount;
+            
+            document.title = isRunning ? `${formattedTime} - Focus!` : `FocusForge`;
+            setProgress(timeLeft);
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            
+            // Switch UI from "Input Mode" to "Countdown Mode"
+            timerSettings.classList.add('hidden');
+            displayEl.classList.remove('hidden');
+            
+            isRunning = true;
+            startBtn.classList.add('hidden');
+            pauseBtn.classList.remove('hidden');
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    isRunning = false;
+                    completedCycles++;
+                    
+                    displayEl.textContent = "00:00";
+                    overlayTimerDisplay.textContent = "00:00";
+                    setProgress(0);
+                    
+                    logHistory('Completed Focus Session', 'cycle');
+                    
+                    startBtn.classList.remove('hidden');
+                    pauseBtn.classList.add('hidden');
+                    startBtn.textContent = "Start Focus";
+                    
+                    successOverlay.classList.add('active');
+                    
+                    if (Notification.permission === 'granted') {
+                        new Notification('Focus Session Complete!', { body: 'You completed your focus time, you are free now!', icon: '🎉' });
+                    }
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            if (!isRunning) return;
+            isRunning = false;
+            clearInterval(timerInterval);
+            pauseBtn.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            startBtn.textContent = "Resume";
+            updateDisplay();
+        }
+
+        function resetTimer() {
+            isRunning = false;
+            clearInterval(timerInterval);
+            timeLeft = goalMinutes * 60;
+            
+            // Show input again
+            timerSettings.classList.remove('hidden');
+            displayEl.classList.add('hidden');
+            
+            pauseBtn.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            startBtn.textContent = "Start Focus";
+            updateDisplay();
+        }
+
+        // --- Strict Window Blur Interception Logic ---
+        window.addEventListener('blur', () => {
+            if (isRunning) {
+                pauseTimer();
+                
+                distractionCount++; 
+                updateDisplay(); 
+
+                logHistory('Distraction Logged (Navigated Away)', 'distraction');
+                wasDistracted = true;
+
+                if (Notification.permission === 'granted') {
+                    new Notification('⚠️ Distraction Logged!', { 
+                        body: 'Your timer has been paused. Come back to your work!', 
+                        icon: '⚠️' 
+                    });
+                }
+            }
+        });
+
+        window.addEventListener('focus', () => {
+            if (wasDistracted) {
+                distractionOverlay.classList.add('active');
+                wasDistracted = false; 
+            }
+        });
+
+        // --- Blocklist Logic ---
+        function renderBlocklist() {
+            blocklistContainer.innerHTML = '';
+            blocklist.forEach((domain, index) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-slate-900 px-4 py-3 rounded-lg border border-slate-700 text-sm shadow-sm transition-all hover:border-slate-600";
+                li.innerHTML = `
+                    <span class="text-slate-300 font-medium">${domain}</span>
+                    <button onclick="removeDomain(${index})" class="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-1 rounded transition-colors" title="Remove">✕</button>
+                `;
+                blocklistContainer.appendChild(li);
+            });
+            localStorage.setItem('focusForge_blocklist', JSON.stringify(blocklist));
+        }
+
+        function addDomain() {
+            const domain = domainInput.value.trim().toLowerCase();
+            if (domain && !blocklist.includes(domain)) {
+                blocklist.push(domain);
+                domainInput.value = '';
+                renderBlocklist();
+            }
+        }
+
+        window.removeDomain = function(index) {
+            blocklist.splice(index, 1);
+            renderBlocklist();
+        }
+
+        // --- Simulator Interception Logic ---
+        function simulateNavigation() {
+            const targetUrl = simulatorInput.value.trim().toLowerCase();
+            if (!targetUrl) return;
+
+            const isBlocked = blocklist.some(blockedDomain => targetUrl.includes(blockedDomain));
+
+            if (isRunning && isBlocked) {
+                blockOverlay.classList.add('active');
+                simulatorFeedback.classList.add('hidden');
+            } else {
+                simulatorFeedback.textContent = `✅ Allowed: Navigated to ${targetUrl}`;
+                simulatorFeedback.className = "mt-3 text-sm text-emerald-400 block font-medium";
+                setTimeout(() => simulatorFeedback.classList.add('hidden'), 3000);
+            }
+            simulatorInput.value = '';
+        }
+
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', startTimer);
+        pauseBtn.addEventListener('click', pauseTimer);
+        resetBtn.addEventListener('click', resetTimer);
+        
+        upTime.addEventListener('click', () => updateGoal(1));
+        downTime.addEventListener('click', () => updateGoal(-1));
+        goalInput.addEventListener('change', (e) => {
+            goalMinutes = parseInt(e.target.value) || 25;
+            goalMinutes = Math.max(1, Math.min(120, goalMinutes));
+            goalInput.value = goalMinutes;
+            timeLeft = goalMinutes * 60;
+            updateDisplay();
+        });
+        
+        addDomainBtn.addEventListener('click', addDomain);
+        domainInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addDomain(); });
+
+        goBtn.addEventListener('click', simulateNavigation);
+        simulatorInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') simulateNavigation(); });
+
+        // Close Overlays
+        closeOverlayBtn.addEventListener('click', () => blockOverlay.classList.remove('active'));
+        closeDistractionBtn.addEventListener('click', () => distractionOverlay.classList.remove('active'));
+        closeSuccessBtn.addEventListener('click', () => {
+            successOverlay.classList.remove('active');
+            resetTimer(); 
+        });
+
+        // Start the app
+        initApp();
+    </script>
+</body>
+</html>
