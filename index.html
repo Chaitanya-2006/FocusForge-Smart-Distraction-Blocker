@@ -7,30 +7,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .overlay {
-            display: none; 
-            backdrop-filter: blur(15px);
-        }
-        .overlay.active {
-            display: flex;
-        }
+        .overlay { display: none; backdrop-filter: blur(15px); }
+        .overlay.active { display: flex; }
         #progress-ring {
             transition: stroke-dashoffset 1s linear;
             transform: rotate(-90deg);
             transform-origin: 50% 50%;
         }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #1e293b; 
-            border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #334155; 
-            border-radius: 4px;
-        }
-        /* Custom select arrow */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        
         select {
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
             background-position: right 0.5rem center;
@@ -42,7 +29,6 @@
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex items-center justify-center p-6 relative">
 
     <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 z-10">
-        
         <div class="lg:col-span-5 bg-slate-800 p-8 rounded-2xl shadow-lg flex flex-col items-center justify-center border border-slate-700 h-fit">
             <h1 class="text-3xl font-semibold text-slate-300 mb-2">FocusForge</h1>
             <p class="text-slate-200 mb-2">Smart Distraction Blocker</p>
@@ -93,10 +79,20 @@
                     <p id="distraction-count" class="text-3xl font-bold text-amber-400 mt-2">0</p>
                 </div>
             </div>
+            
+            <!-- Added About section as discussed -->
+            <div class="w-full mt-8 bg-slate-900/50 rounded-xl p-5 border border-slate-700/50">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-emerald-400 text-lg">💡</span>
+                    <h2 class="text-lg font-semibold text-slate-300">What is FocusForge?</h2>
+                </div>
+                <p class="text-sm text-slate-400 leading-relaxed">
+                    Your privacy-first productivity companion. Designed to help you beat digital distractions, it uses smart timers to keep you in the zone and actively intercepts your attempts to visit blocked sites. With built-in window tracking, we catch you when your focus slips. Everything runs entirely in your browser—no extensions, no databases.
+                </p>
+            </div>
         </div>
 
         <div class="lg:col-span-7 flex flex-col gap-6">
-            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700 flex flex-col">
                     <h2 class="text-xl font-semibold mb-4 border-b border-slate-700 pb-2 text-slate-300">Distracting Websites</h2>
@@ -166,7 +162,6 @@
                     <canvas id="distractionChart"></canvas>
                 </div>
             </div>
-
         </div>
     </main>
 
@@ -188,7 +183,7 @@
                     </select>
                 </div>
                 <ul id="specific-logs-container" class="space-y-3 overflow-y-auto custom-scrollbar pr-2 flex-1">
-                    </ul>
+                </ul>
             </div>
         </div>
     </div>
@@ -227,7 +222,7 @@
     </div>
 
     <script>
-        // --- State Management ---
+        // globals
         let goalMinutes = 25; 
         let timeLeft = goalMinutes * 60;
         let timerInterval = null;
@@ -239,8 +234,9 @@
         let blocklist = [];
         let sessionHistory = []; 
         let wasDistracted = false;
+        let suppressNextBlurInterception = false;
 
-        // Chart Data State
+        // chart setup - getting from localstorage
         let siteDistractions = JSON.parse(localStorage.getItem('focusForge_chartData')) || {
             'youtube.com': 0,
             'facebook.com': 0,
@@ -249,22 +245,22 @@
         };
         let distractionChart;
 
-        // --- DOM Elements ---
         const displayEl = document.getElementById('timer-display');
         const startBtn = document.getElementById('start-btn');
         const pauseBtn = document.getElementById('pause-btn');
         const resetBtn = document.getElementById('reset-btn');
         const cycleCountEl = document.getElementById('cycle-count');
         const distractionCountEl = document.getElementById('distraction-count');
+        
         const domainInput = document.getElementById('domain-input');
         const addDomainBtn = document.getElementById('add-domain-btn');
         const blocklistContainer = document.getElementById('blocklist-container');
-        
         const goalInput = document.getElementById('goal-input');
         const timerSettings = document.getElementById('timer-settings');
         const upTime = document.getElementById('up-time');
         const downTime = document.getElementById('down-time');
 
+        // circle logic
         const circle = document.getElementById('progress-ring');
         const radius = circle.r.baseVal.value;
         const circumference = radius * 2 * Math.PI;
@@ -281,23 +277,18 @@
         
         const distractionOverlay = document.getElementById('distraction-overlay');
         const closeDistractionBtn = document.getElementById('close-distraction-btn');
-
         const successOverlay = document.getElementById('success-overlay');
         const closeSuccessBtn = document.getElementById('close-success-btn');
-
         const historyContainer = document.getElementById('history-container');
         
-        // New Modal Elements
+        // modals
         const openLogsBtn = document.getElementById('open-logs-btn');
         const closeLogsBtn = document.getElementById('close-logs-btn');
         const siteLogsOverlay = document.getElementById('site-logs-overlay');
         const siteSelect = document.getElementById('site-select');
         const specificLogsContainer = document.getElementById('specific-logs-container');
-
-        // Nuke Button
         const nukeHistoryBtn = document.getElementById('nuke-history-btn');
 
-        // --- Initialization ---
         function initApp() {
             const savedList = localStorage.getItem('focusForge_blocklist');
             if (savedList) blocklist = JSON.parse(savedList);
@@ -316,7 +307,7 @@
             updateSiteDropdown();
         }
 
-        // --- Chart & Dropdown Logic ---
+        // chart render
         function initChart() {
             const ctx = document.getElementById('distractionChart').getContext('2d');
             distractionChart = new Chart(ctx, {
@@ -374,7 +365,7 @@
             }
         }
 
-        // --- Quick Button Logic ---
+        // buttons
         function quickAddDomain(domain) {
             if (domain && !blocklist.includes(domain)) {
                 blocklist.push(domain);
@@ -392,7 +383,18 @@
             simulatorInput.value = domain;
         }
 
-        // --- History Logic ---
+        function normalizeUrl(rawInput) {
+            const input = rawInput.trim();
+            if (!input) return null;
+            const hasProtocol = /^https?:\/\//i.test(input);
+            const candidate = hasProtocol ? input : `https://${input}`;
+            try {
+                return new URL(candidate);
+            } catch {
+                return null;
+            }
+        }
+
         function logHistory(message, type, domain = null) {
             const now = new Date();
             const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -407,6 +409,7 @@
 
             sessionHistory.unshift(entry); 
             
+            // keep it under 100 to save space
             if (sessionHistory.length > 100) {
                 sessionHistory.pop();
             }
@@ -481,27 +484,23 @@
             });
         }
 
-        // --- Master Nuke Button Logic ---
+        // dangerous button - careful
         nukeHistoryBtn.addEventListener('click', () => {
             if(confirm("Warning: Are you sure you want to permanently delete ALL activity logs, graphs, and stats? This cannot be undone.")) {
                 
-                // 1. Clear text logs
                 sessionHistory = [];
                 localStorage.setItem('focusForge_history', JSON.stringify(sessionHistory));
                 
-                // 2. Clear graph data (reset counts to 0 for tracking list)
                 siteDistractions = {};
                 blocklist.forEach(domain => {
                     siteDistractions[domain] = 0;
                 });
                 localStorage.setItem('focusForge_chartData', JSON.stringify(siteDistractions));
                 
-                // 3. Reset Counters
                 completedCycles = 0;
                 distractionCount = 0;
                 updateDisplay();
 
-                // 4. Update UI visuals
                 renderHistory();
                 updateChart();
                 updateSiteDropdown();
@@ -511,7 +510,6 @@
             }
         });
 
-        // --- Timer Setting Logic ---
         function updateGoal(val) {
             if (isRunning) return; 
             goalMinutes = Math.max(1, Math.min(120, goalMinutes + val));
@@ -520,7 +518,6 @@
             updateDisplay();
         }
 
-        // --- Timer Logic ---
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60).toString().padStart(2, '0');
             const s = (seconds % 60).toString().padStart(2, '0');
@@ -532,6 +529,7 @@
             const offset = circumference - (current / total) * circumference;
             circle.style.strokeDashoffset = offset;
             
+            // turn red when < 30 sec left
             if (current < 30 && current > 0) {
                 circle.classList.remove('text-emerald-500');
                 circle.classList.add('text-red-500');
@@ -555,6 +553,7 @@
 
         function startTimer() {
             if (isRunning) return;
+            // console.log("timer started");
             
             timerSettings.classList.add('hidden');
             displayEl.classList.remove('hidden');
@@ -615,8 +614,12 @@
             updateDisplay();
         }
 
-        // --- Strict Window Blur Interception Logic ---
+        // window blur checks
         window.addEventListener('blur', () => {
+            if (suppressNextBlurInterception) {
+                suppressNextBlurInterception = false;
+                return;
+            }
             if (isRunning) {
                 pauseTimer();
                 distractionCount++; 
@@ -640,7 +643,6 @@
             }
         });
 
-        // --- Blocklist Logic ---
         function renderBlocklist() {
             blocklistContainer.innerHTML = '';
             blocklist.forEach((domain, index) => {
@@ -652,6 +654,7 @@
                 `;
                 blocklistContainer.appendChild(li);
             });
+            // TODO: move this to backend eventually
             localStorage.setItem('focusForge_blocklist', JSON.stringify(blocklist));
         }
 
@@ -675,34 +678,97 @@
             renderBlocklist();
         }
 
-        // --- Simulator Interception Logic ---
+        // simulate routing logic
         function simulateNavigation() {
             const targetUrl = simulatorInput.value.trim().toLowerCase();
             if (!targetUrl) return;
 
-            const matchedBlockedDomain = blocklist.find(blockedDomain => targetUrl.includes(blockedDomain));
+            const parsedUrl = normalizeUrl(targetUrl);
+            if (!parsedUrl) {
+                simulatorFeedback.textContent = 'Invalid URL. Please enter a valid website.';
+                simulatorFeedback.className = "mt-3 text-sm text-red-400 block font-medium";
+                setTimeout(() => simulatorFeedback.classList.add('hidden'), 3000);
+                return;
+            }
+
+            const targetHost = parsedUrl.hostname.toLowerCase();
+            const matchedBlockedDomain = blocklist.find(blockedDomain => targetHost.includes(blockedDomain));
+            suppressNextBlurInterception = true;
+            const popupTab = window.open('', '_blank');
+            
+            if (!popupTab) {
+                suppressNextBlurInterception = false;
+                simulatorFeedback.textContent = 'Popup blocked by browser. Please allow popups for this site.';
+                simulatorFeedback.className = "mt-3 text-sm text-red-400 block font-medium";
+                setTimeout(() => simulatorFeedback.classList.add('hidden'), 3000);
+                return;
+            }
 
             if (isRunning && matchedBlockedDomain) {
-                blockOverlay.classList.add('active');
+                // generating block page dynamically
+                popupTab.document.title = 'Access Denied';
+                popupTab.document.body.style.margin = '0';
+                popupTab.document.body.style.minHeight = '100vh';
+                popupTab.document.body.style.display = 'flex';
+                popupTab.document.body.style.alignItems = 'center';
+                popupTab.document.body.style.justifyContent = 'center';
+                popupTab.document.body.style.background = '#0f172a';
+                popupTab.document.body.style.color = '#e2e8f0';
+                popupTab.document.body.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                popupTab.document.body.style.padding = '24px';
+
+                const card = popupTab.document.createElement('div');
+                card.style.maxWidth = '600px';
+                card.style.width = '100%';
+                card.style.background = '#1e293b';
+                card.style.border = '1px solid #334155';
+                card.style.borderRadius = '16px';
+                card.style.padding = '28px';
+                card.style.textAlign = 'center';
+                card.style.boxSizing = 'border-box';
+
+                const heading = popupTab.document.createElement('h1');
+                heading.textContent = 'Access Denied';
+                heading.style.margin = '0 0 12px';
+                heading.style.fontSize = '2rem';
+                heading.style.color = '#f8fafc';
+
+                const info = popupTab.document.createElement('p');
+                info.textContent = 'This website is in your Distracting Websites list while your timer is active.';
+                info.style.margin = '0 0 10px';
+                info.style.lineHeight = '1.6';
+                info.style.color = '#cbd5e1';
+
+                const blocked = popupTab.document.createElement('p');
+                blocked.textContent = `Blocked: ${matchedBlockedDomain}`;
+                blocked.style.margin = '0';
+                blocked.style.fontWeight = '700';
+                blocked.style.color = '#f59e0b';
+
+                card.appendChild(heading);
+                card.appendChild(info);
+                card.appendChild(blocked);
+                popupTab.document.body.innerHTML = '';
+                popupTab.document.body.appendChild(card);
                 simulatorFeedback.classList.add('hidden');
-                
+
                 if(siteDistractions[matchedBlockedDomain] !== undefined) {
                     siteDistractions[matchedBlockedDomain]++;
                     updateChart();
                 }
-                
-                // Track specific domain in history
+
                 logHistory(`Blocked access to ${matchedBlockedDomain}`, 'distraction', matchedBlockedDomain);
 
             } else {
-                simulatorFeedback.textContent = `✅ Allowed: Navigated to ${targetUrl}`;
+                popupTab.location.href = parsedUrl.href;
+                simulatorFeedback.textContent = `✅ Allowed: Navigated to ${parsedUrl.href}`;
                 simulatorFeedback.className = "mt-3 text-sm text-emerald-400 block font-medium";
                 setTimeout(() => simulatorFeedback.classList.add('hidden'), 3000);
             }
             simulatorInput.value = '';
         }
 
-        // --- Event Listeners ---
+        // event bindings
         startBtn.addEventListener('click', startTimer);
         pauseBtn.addEventListener('click', pauseTimer);
         resetBtn.addEventListener('click', resetTimer);
@@ -723,7 +789,6 @@
         goBtn.addEventListener('click', simulateNavigation);
         simulatorInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') simulateNavigation(); });
 
-        // Modal specific listeners
         openLogsBtn.addEventListener('click', () => {
             siteLogsOverlay.classList.add('active');
             renderSpecificLogs();
@@ -738,6 +803,7 @@
             resetTimer(); 
         });
 
+        // run it
         initApp();
     </script>
 </body>
